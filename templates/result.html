@@ -1,35 +1,73 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Translation Completed</title>
+    <title>Translation Complete</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <h1>Translation Completed!</h1>
+    <div class="result-container">
+        <h1>Translation Complete!</h1>
 
-    <div class="video-container">
-        <!-- Original Video -->
-        <div class="video-box">
-            <h3>Original Video</h3>
-            <video controls>
-                <source src="{{ original_video_url }}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
+        <div class="video-container">
+            <div class="video-box original">
+                <h3>Original Video</h3>
+                <video controls>
+                    <source src="{{ original_video_url }}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+
+            <div class="video-box translated">
+                <h3>Translated Videos</h3>
+                <div id="translated-videos">
+                    <video controls>
+                        <source src="{{ translated_video_url }}" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+            </div>
         </div>
 
-        <!-- Translated Video -->
-        <div class="video-box">
-            <h3>Translated Video</h3>
-            <video controls>
-                <source src="{{ translated_video_url }}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
+        <div class="action-buttons">
+            <a href="{{ translated_video_url }}" download class="action-button download">
+                Download Translated Video
+            </a>
+            <button onclick="window.location.href='/'" class="action-button new-translation">
+                Translate Another Video
+            </button>
+        </div>
+
+        <div class="share-container">
+            <h3>Share Video</h3>
+            <div class="share-buttons">
+                <button onclick="share('facebook')" class="share-button facebook">Facebook</button>
+                <button onclick="share('twitter')" class="share-button twitter">Twitter</button>
+                <button onclick="share('linkedin')" class="share-button linkedin">LinkedIn</button>
+                <button onclick="copyLink()" class="share-button copy">Copy Link</button>
+            </div>
         </div>
     </div>
 
-    <!-- Download Button -->
-    <a href="{{ translated_video_url }}" download>Download Translated Video</a>
+    <script>
+        function share(platform) {
+            const url = encodeURIComponent(window.location.href);
+            const text = encodeURIComponent('Check out this translated video!');
+            
+            const shareUrls = {
+                facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+                twitter: `https://twitter.com/intent/tweet?url=${url}&text=${text}`,
+                linkedin: `https://www.linkedin.com/shareArticle?url=${url}&title=${text}`
+            };
+            
+            window.open(shareUrls[platform], '_blank');
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href)
+                .then(() => alert('Link copied to clipboard!'))
+                .catch(err => console.error('Failed to copy link:', err));
+        }
+    </script>
 </body>
 </html>
