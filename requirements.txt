@@ -1,0 +1,7 @@
+Flask
+speechrecognition
+googletrans==4.0.0-rc1
+gtts
+yt-dlp
+uuid
+datetime
