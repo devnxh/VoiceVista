@@ -53,7 +53,17 @@
         <div id="youtubeFormContainer" style="display: none;">
             <form id="youtubeForm" action="/process_youtube" method="post" onsubmit="showProgress()">
                 <label for="youtube_link">YouTube Video Link:</label>
-                <input type="url" id="youtube_link" name="youtube_link" placeholder="Enter YouTube video link" required><br><br>
+                <input type="url" id="youtube_link" name="youtube_link" placeholder="Enter YouTube video link" required><br>
+                
+                <div class="youtube-tips">
+                    <p><strong>Tips for YouTube videos:</strong></p>
+                    <ul>
+                        <li>Prefer shorter videos (under 5 minutes) for faster processing</li>
+                        <li>Some videos may be restricted and not downloadable</li>
+                        <li>If download times out, try a different video or try again later</li>
+                        <li>Regular YouTube links work better than Shorts or live streams</li>
+                    </ul>
+                </div>
                 
                 <label for="language">Select Language:</label>
                 <select id="language" name="language" required>
