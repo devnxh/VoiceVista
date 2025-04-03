@@ -20,6 +20,20 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .drop-zone {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone.dragover {
+            border-color: #3498db;
+            background-color: rgba(52, 152, 219, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -103,6 +117,49 @@
         function showProgress() {
             document.getElementById("progressModal").style.display = "flex";
         }
+
+        // Drag and drop functionality
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('video');
+
+        // Click to upload
+        dropZone.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length > 0) {
+                dropZone.textContent = `Selected file: ${fileInput.files[0].name}`;
+            }
+        });
+
+        // Drag and drop events
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('video/')) {
+                    fileInput.files = files;
+                    dropZone.textContent = `Selected file: ${file.name}`;
+                } else {
+                    alert('Please upload a video file');
+                }
+            }
+        });
     </script>
 </body>
 </html>

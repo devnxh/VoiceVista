@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, send_file,
 import os
 import subprocess
 import whisper
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 from gtts import gTTS
 import uuid
 from datetime import datetime
@@ -144,13 +144,13 @@ def process_video(video_path, target_language):
 
         # Translate text
         logger.info(f"Translating text to {target_language}")
-        translator = Translator()
-        translated = translator.translate(transcription, dest=target_language)
-        logger.info(f"Translation completed: {translated.text[:100]}...")
+        translator = GoogleTranslator(source='auto', target=target_language)
+        translated_text = translator.translate(transcription)
+        logger.info(f"Translation completed: {translated_text[:100]}...")
 
         # Synthesize translated text to audio
         logger.info("Converting translated text to speech")
-        tts = gTTS(text=translated.text, lang=target_language)
+        tts = gTTS(text=translated_text, lang=target_language)
         tts.save(translated_audio_path)
 
         # Merge audio and video

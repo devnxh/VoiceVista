@@ -1,7 +1,9 @@
 Flask
-speechrecognition
-googletrans==4.0.0-rc1
+openai-whisper
+deep_translator
 gtts
 yt-dlp
 uuid
 datetime
+httpcore==0.9.1
+httpx==0.13.3
