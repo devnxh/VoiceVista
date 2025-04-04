@@ -1,6 +1,6 @@
 # Voice Vista: Video Translation with Whisper Speech Recognition
 
-This application translates speech in videos to different languages by combining OpenAI's Whisper model for speech recognition with Google Translate and gTTS.
+This application translates speech in videos to different languages by combining OpenAI's Whisper model for speech recognition with Google Translate and gTTS. It also provides AI-powered summarization of video content.
 
 ## Features
 
@@ -9,6 +9,8 @@ This application translates speech in videos to different languages by combining
 - Process YouTube videos by URL
 - Translate speech to multiple languages
 - Merge translated audio with original video
+- AI-powered content summarization (25% of original length)
+- GPU acceleration support for faster processing
 
 ## Supported Languages
 
@@ -28,13 +30,15 @@ This application translates speech in videos to different languages by combining
 - Googletrans
 - gTTS
 - yt-dlp
+- Transformers (for summarization)
+- PyTorch (with CUDA support for GPU acceleration)
 
 ## Installation
 
 1. Clone the repository
 2. Install dependencies:
    ```
-   pip install flask openai-whisper googletrans==4.0.0-rc1 gtts yt-dlp
+   pip install flask openai-whisper googletrans==4.0.0-rc1 gtts yt-dlp transformers torch torchvision torchaudio
    ```
 3. Install specific versions for compatibility:
    ```
@@ -88,9 +92,10 @@ The application may conflict with newer versions of some packages like elevenlab
 
 1. The application extracts audio from the uploaded video using FFmpeg
 2. Whisper model transcribes the audio to text with high accuracy
-3. Google Translate translates the transcribed text to the target language
-4. gTTS converts the translated text to speech
-5. FFmpeg merges the new audio with the original video
+3. AI summarization generates a concise summary (25% of original length)
+4. Google Translate translates both the full transcription and summary to the target language
+5. gTTS converts the translated text to speech
+6. FFmpeg merges the new audio with the original video
 
 ## Troubleshooting
 
@@ -98,6 +103,7 @@ The application may conflict with newer versions of some packages like elevenlab
 - For Whisper-related errors, check that your CUDA/GPU setup is correctly configured if using GPU acceleration
 - Long videos may require more memory for Whisper transcription
 - If translation fails, try with shorter content first to ensure all components are working correctly
+- For summarization errors, ensure you have enough RAM available (at least 4GB recommended)
 - For YouTube download issues, refer to the "YouTube Download Timeouts" section above
 
 ## Notes
