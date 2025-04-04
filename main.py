@@ -71,7 +71,11 @@ def download_youtube_video(url, save_path):
 
 @app.route('/')
 def index():
-    language = {
+    return render_template('index.html')
+
+@app.route('/main')
+def main():
+    languages = {
         'en': 'English',
         'hi': 'Hindi',
         'es': 'Spanish',
@@ -79,7 +83,7 @@ def index():
         'de': 'German',
         'zh-cn': 'Chinese (Simplified)'
     }
-    return render_template('index.html', languages=language)
+    return render_template('main.html', languages=languages)
 
 @app.route('/process', methods=['POST'])
 def process():
