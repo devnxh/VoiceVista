@@ -409,43 +409,32 @@ def synthesize_speech_safely(text, output_path, language):
         return False
 
 def summarize_text(text):
-    """Generate a summary of the given text using the transformer model."""
+    """Generate a summary of the text using the transformer model."""
+    if not summarizer:
+        logger.warning("Summarizer model not loaded")
+        return None
+    
     try:
-        if not summarizer:
-            logger.warning("Summarizer model not available, skipping summarization")
-            return None
-            
-        logger.info("Generating summary")
-        
-        # Truncate the text if it exceeds the model's maximum input length
-        max_input_length = summarizer.model.config.max_position_embeddings
-        if len(text) > max_input_length:
-            logger.info(f"Text exceeds model's maximum input length ({max_input_length}), truncating")
-            text = text[:max_input_length]
-        
-        # Count approximate number of words in the input text
+        logger.info("Generating summary...")
+        # Count words in the input text
         word_count = len(text.split())
-        logger.info(f"Input text word count: {word_count}")
+        # Set target length to 50% of input text length
+        target_length = max(30, int(word_count * 0.5))
+        logger.info(f"Input text length: {word_count} words, Target summary length: {target_length} words")
         
-        # Set summary length to approximately 25% of the input text
-        target_length = max(30, min(int(word_count * 0.25), 500))  # Enforce min/max bounds
-        min_length = max(15, int(target_length * 0.5))  # Minimum length is half the target
+        # Generate summary with dynamic length
+        summary = summarizer(
+            text,
+            max_length=target_length,
+            min_length=max(30, int(target_length * 0.5)),  # Ensure minimum length is 50% of target
+            do_sample=False,
+            truncation=True
+        )[0]['summary_text']
         
-        logger.info(f"Setting summary length to 25% of input: {target_length} tokens (min: {min_length})")
-        
-        # Generate summary
-        summary_result = summarizer(text, max_length=target_length, min_length=min_length, do_sample=False)
-        
-        if summary_result and len(summary_result) > 0:
-            summary = summary_result[0]['summary_text']
-            logger.info(f"Summary generated: {summary[:100]}...")
-            logger.info(f"Summary length: approximately {len(summary.split())} words")
-            return summary
-        else:
-            logger.warning("Failed to generate summary")
-            return None
+        logger.info(f"Generated summary length: {len(summary.split())} words")
+        return summary
     except Exception as e:
-        logger.error(f"Error generating summary: {e}")
+        logger.error(f"Error in summarization: {str(e)}")
         return None
 
 def process_short_video(video_path, target_language):

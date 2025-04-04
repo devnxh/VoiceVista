@@ -9,7 +9,7 @@ This application translates speech in videos to different languages by combining
 - Process YouTube videos by URL
 - Translate speech to multiple languages
 - Merge translated audio with original video
-- AI-powered content summarization (25% of original length)
+- AI-powered content summarization (50% of original length)
 - GPU acceleration support for faster processing
 
 ## Supported Languages
@@ -92,7 +92,7 @@ The application may conflict with newer versions of some packages like elevenlab
 
 1. The application extracts audio from the uploaded video using FFmpeg
 2. Whisper model transcribes the audio to text with high accuracy
-3. AI summarization generates a concise summary (25% of original length)
+3. AI summarization generates a detailed summary (50% of original length)
 4. Google Translate translates both the full transcription and summary to the target language
 5. gTTS converts the translated text to speech
 6. FFmpeg merges the new audio with the original video
