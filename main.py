@@ -104,12 +104,9 @@ def main():
         'gu': 'Gujarati',
         'ur': 'Urdu',
         'bn': 'Bengali',
-        'te': 'Telugu',
         'ta': 'Tamil',
-        'ml': 'Malayalam',
         'mr': 'Marathi',
         'kn': 'Kannada',
-        'or': 'Odia',
         'mr': 'Marathi',
     
     }
