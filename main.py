@@ -12,6 +12,13 @@ import torch
 import math
 import time
 from transformers import pipeline, logging as transformers_logging
+import PyPDF2
+import pytesseract
+from PIL import Image
+from docx import Document as DocxDocument
+import re
+import io
+import shutil  # Added for checking if commands exist in PATH
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -260,59 +267,41 @@ def adjust_audio_speed(audio_path, target_duration, output_path):
         return False
 
 def translate_text_in_chunks(text, target_language, chunk_size=3000):
-    """Translate large text by breaking it into smaller chunks to avoid timeouts."""
-    if not text:
-        return ""
-    
-    # If text is small enough, translate directly
-    if len(text) <= chunk_size:
-        try:
-            translator = GoogleTranslator(source='auto', target=target_language)
-            return translator.translate(text)
-        except Exception as e:
-            logger.error(f"Translation error: {e}")
-            return text  # Return original text on error
-    
-    # For longer text, split into sentences and translate in chunks
-    # Simple sentence splitting by punctuation
-    sentences = []
-    for end_char in ['. ', '! ', '? ', '.\n', '!\n', '?\n']:
-        text = text.replace(end_char, end_char + '<SPLIT>')
-    
-    raw_sentences = text.split('<SPLIT>')
-    
-    # Combine sentences into chunks that don't exceed chunk_size
-    chunks = []
-    current_chunk = ""
-    
-    for sentence in raw_sentences:
-        if len(current_chunk) + len(sentence) > chunk_size:
-            if current_chunk:
-                chunks.append(current_chunk.strip())
-            current_chunk = sentence + " "
-        else:
-            current_chunk += sentence + " "
-    
-    if current_chunk:
-        chunks.append(current_chunk.strip())
-    
-    # Translate each chunk
-    translated_chunks = []
-    translator = GoogleTranslator(source='auto', target=target_language)
-    
-    for i, chunk in enumerate(chunks):
-        logger.info(f"Translating chunk {i+1}/{len(chunks)} ({len(chunk)} chars)")
-        try:
-            translated = translator.translate(chunk)
-            translated_chunks.append(translated)
-            # Short delay to avoid rate limiting
-            time.sleep(0.5)
-        except Exception as e:
-            logger.error(f"Error translating chunk {i+1}: {e}")
-            translated_chunks.append(chunk)  # Use original on error
-    
-    # Combine all translated chunks
-    return " ".join(translated_chunks)
+    """Translate text in chunks to avoid API limits."""
+    try:
+        if not text or text.isspace():
+            logger.warning("Empty text provided for translation")
+            return ""
+        
+        # Split text into chunks to avoid API limits
+        chunks = []
+        for i in range(0, len(text), chunk_size):
+            chunks.append(text[i:i + chunk_size])
+        
+        translated_chunks = []
+        translator = GoogleTranslator(source='auto', target=target_language)
+        
+        # Translate each chunk
+        for i, chunk in enumerate(chunks):
+            logger.info(f"Translating chunk {i+1}/{len(chunks)}")
+            try:
+                if chunk and not chunk.isspace():
+                    translated = translator.translate(chunk)
+                    if translated:
+                        translated_chunks.append(translated)
+                    else:
+                        logger.warning(f"Empty translation returned for chunk {i+1}")
+                        translated_chunks.append("")  # Add empty string to maintain ordering
+            except Exception as e:
+                logger.error(f"Error translating chunk {i+1}: {e}")
+                # Add the original chunk to maintain ordering
+                translated_chunks.append(chunk)
+        
+        # Join all translated chunks
+        return " ".join(translated_chunks)
+    except Exception as e:
+        logger.error(f"Error in translate_text_in_chunks: {e}")
+        return text  # Return original text if translation fails
 
 def synthesize_speech_safely(text, output_path, language):
     """Safely generate speech from text, handling large text volumes."""
@@ -720,9 +709,244 @@ def process_long_video(video_path, target_language, duration):
 
 @app.route('/get_translated_videos')
 def get_translated_videos():
-    """Fetch translated video filenames for frontend."""
-    videos = os.listdir(app.config['FINAL_OUTPUT'])
-    return jsonify(videos)
+    try:
+        # Get list of all processed videos
+        processed_dir = app.config['FINAL_OUTPUT']
+        videos = []
+        
+        for filename in os.listdir(processed_dir):
+            if filename.endswith('.mp4'):
+                # Get creation time and format it
+                file_path = os.path.join(processed_dir, filename)
+                creation_time = os.path.getctime(file_path)
+                creation_date = datetime.fromtimestamp(creation_time).strftime('%Y-%m-%d %H:%M:%S')
+                
+                videos.append({
+                    'filename': filename,
+                    'date': creation_date,
+                    'url': url_for('static', filename=f'processed/{filename}')
+                })
+        
+        # Sort by creation date (newest first)
+        videos.sort(key=lambda x: x['date'], reverse=True)
+        return jsonify(videos)
+    except Exception as e:
+        logger.error(f"Error in get_translated_videos: {e}")
+        return jsonify([])
+
+@app.route('/documents')
+def documents():
+    languages = {
+        'en': 'English',
+        'hi': 'Hindi',
+        'es': 'Spanish',
+        'fr': 'French',
+        'de': 'German',
+        'gu': 'Gujarati',
+        'ur': 'Urdu',
+        'bn': 'Bengali',
+        'ta': 'Tamil',
+        'mr': 'Marathi',
+        'kn': 'Kannada',
+    }
+    return render_template('documents.html', languages=languages)
+
+@app.route('/process_document', methods=['POST'])
+def process_document_route():
+    try:
+        document = request.files['document']
+        target_language = request.form['language']
+        
+        if not document:
+            return render_template('error.html', error="No document file uploaded")
+        
+        # Check if the file has an allowed extension
+        allowed_extensions = ['.pdf', '.docx', '.doc', '.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']
+        file_extension = os.path.splitext(document.filename)[1].lower()
+        
+        if file_extension not in allowed_extensions:
+            return render_template('error.html', 
+                                  error=f"Unsupported file type: {file_extension}. Please upload a PDF, Word document, or image file.")
+        
+        return process_document(document, target_language)
+    
+    except Exception as e:
+        logger.error(f"Error in process_document_route: {e}")
+        return render_template('error.html', error=str(e))
+
+@app.route('/download/<filename>')
+def download_file(filename):
+    try:
+        return send_file(os.path.join(app.config['OUTPUT_FOLDER'], filename), as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error downloading file: {e}")
+        return render_template('error.html', error=f"Error downloading file: {e}")
+
+def is_tesseract_installed():
+    """Check if Tesseract OCR is installed and available in the PATH."""
+    return shutil.which('tesseract') is not None
+
+def extract_text_from_pdf(pdf_file):
+    """Extract text from a PDF file."""
+    try:
+        logger.info(f"Extracting text from PDF: {pdf_file}")
+        try:
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            text = ""
+            for page_num in range(len(pdf_reader.pages)):
+                page = pdf_reader.pages[page_num]
+                text += page.extract_text() + "\n"
+            
+            # Clean up the text
+            text = re.sub(r'\s+', ' ', text).strip()
+            logger.info(f"Successfully extracted {len(text)} characters from PDF")
+            
+            if not text:
+                return "ERROR: No text could be extracted from the PDF. The file might be a scanned document or contain only images."
+                
+            return text
+        except Exception as e:
+            logger.error(f"Error reading PDF content: {e}")
+            return f"ERROR: Could not read PDF content: {e}"
+    except Exception as e:
+        logger.error(f"Error extracting text from PDF: {e}")
+        return f"ERROR: Could not extract text from PDF: {e}"
+
+def extract_text_from_docx(docx_file):
+    """Extract text from a Word document."""
+    try:
+        logger.info(f"Extracting text from Word document: {docx_file}")
+        try:
+            doc = DocxDocument(docx_file)
+            text = ""
+            for para in doc.paragraphs:
+                text += para.text + "\n"
+            
+            # Clean up the text
+            text = re.sub(r'\s+', ' ', text).strip()
+            logger.info(f"Successfully extracted {len(text)} characters from Word document")
+            
+            if not text:
+                return "ERROR: No text could be extracted from the Word document. The file might contain only images or shapes."
+                
+            return text
+        except Exception as e:
+            logger.error(f"Error reading Word document content: {e}")
+            return f"ERROR: Could not read Word document content: {e}"
+    except Exception as e:
+        logger.error(f"Error extracting text from Word document: {e}")
+        return f"ERROR: Could not extract text from Word document: {e}"
+
+def extract_text_from_image(image_file):
+    """Extract text from an image using OCR."""
+    try:
+        logger.info(f"Extracting text from image: {image_file}")
+        
+        # Check if Tesseract is installed
+        if not is_tesseract_installed():
+            logger.error("Tesseract OCR is not installed or not in PATH")
+            return "ERROR: Tesseract OCR is not installed or not in your PATH. Please install Tesseract OCR and add it to your PATH. See README.md for detailed installation instructions."
+        
+        try:
+            image = Image.open(image_file)
+            
+            # Preprocess image for better OCR results
+            # Convert to grayscale
+            if image.mode != 'L':
+                image = image.convert('L')
+            
+            # Try to use Tesseract
+            try:
+                text = pytesseract.image_to_string(image)
+                
+                # If successful, clean up the text
+                text = re.sub(r'\s+', ' ', text).strip()
+                logger.info(f"Successfully extracted {len(text)} characters from image")
+                
+                if not text:
+                    return "ERROR: No text could be extracted from the image. The image might not contain readable text or the quality may be too low."
+                    
+                return text
+            except pytesseract.TesseractNotFoundError:
+                logger.error("Tesseract OCR executable not found by pytesseract")
+                return "ERROR: Tesseract OCR executable not found by pytesseract. Please make sure Tesseract is installed and in your PATH. See README.md for installation instructions."
+            
+        except Exception as e:
+            logger.error(f"Error processing image: {e}")
+            return f"ERROR: Could not process image: {e}"
+            
+    except Exception as e:
+        logger.error(f"Error extracting text from image: {e}")
+        return f"ERROR: Could not extract text from image: {e}"
+
+def process_document(file, target_language):
+    """Process a document (PDF, Word, or image) to extract and translate text."""
+    try:
+        # Generate unique filename
+        original_filename = file.filename
+        unique_id = datetime.now().strftime('%Y%m%d%H%M%S') + '_' + str(uuid.uuid4())[:8]
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_id + "_" + original_filename)
+        
+        # Save the uploaded file
+        file.save(file_path)
+        logger.info(f"Saved uploaded file to {file_path}")
+        
+        # Determine file type and extract text
+        file_extension = os.path.splitext(original_filename)[1].lower()
+        
+        if file_extension == '.pdf':
+            extracted_text = extract_text_from_pdf(file_path)
+        elif file_extension in ['.docx', '.doc']:
+            extracted_text = extract_text_from_docx(file_path)
+        elif file_extension in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif']:
+            extracted_text = extract_text_from_image(file_path)
+        else:
+            raise ValueError(f"Unsupported file type: {file_extension}")
+        
+        # Check if extraction returned an error message
+        if extracted_text.startswith("ERROR:"):
+            logger.error(f"Text extraction error: {extracted_text}")
+            return render_template('error.html', error=extracted_text)
+        
+        if not extracted_text:
+            raise ValueError(f"No text could be extracted from the file")
+        
+        # Translate the extracted text
+        translated_text = translate_text_in_chunks(extracted_text, target_language)
+        
+        # Create output files for both original and translated text
+        output_dir = app.config['OUTPUT_FOLDER']
+        original_text_filename = f"{unique_id}_original.txt"
+        translated_text_filename = f"{unique_id}_translated.txt"
+        original_text_path = os.path.join(output_dir, original_text_filename)
+        translated_text_path = os.path.join(output_dir, translated_text_filename)
+        
+        # Write to files
+        with open(original_text_path, 'w', encoding='utf-8') as f:
+            f.write(extracted_text)
+        
+        with open(translated_text_path, 'w', encoding='utf-8') as f:
+            f.write(translated_text)
+        
+        logger.info(f"Saved extracted text to {original_text_path}")
+        logger.info(f"Saved translated text to {translated_text_path}")
+        
+        # Return file paths and metadata for the template
+        result = {
+            'original_filename': original_filename,
+            'original_text_filename': original_text_filename,
+            'translated_text_filename': translated_text_filename,
+            'original_text': extracted_text[:1000] + "..." if len(extracted_text) > 1000 else extracted_text,
+            'translated_text': translated_text[:1000] + "..." if len(translated_text) > 1000 else translated_text,
+            'target_language': target_language,
+            'file_type': file_extension[1:].upper(),  # Remove the dot and capitalize
+        }
+        
+        return render_template('document_result.html', result=result)
+    
+    except Exception as e:
+        logger.error(f"Error processing document: {e}")
+        return render_template('error.html', error=str(e))
 
 if __name__ == '__main__':
     app.run(debug=True)

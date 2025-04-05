@@ -88,7 +88,7 @@ nav {
     color: var(--primary-color);
 }
 
-.cta-button {
+nav .cta-button {
     background: var(--primary-color);
     color: white;
     border: none;
@@ -99,9 +99,14 @@ nav {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.cta-button:hover {
+nav .cta-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+nav .cta-buttons {
+    display: flex;
+    gap: 10px;
 }
 
 /* Hero Section */

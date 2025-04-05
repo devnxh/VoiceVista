@@ -1,6 +1,6 @@
 # Voice Vista: Video Translation with Whisper Speech Recognition
 
-This application translates speech in videos to different languages by combining OpenAI's Whisper model for speech recognition with Google Translate and gTTS. It also provides AI-powered summarization of video content.
+This application translates speech in videos to different languages by combining OpenAI's Whisper model for speech recognition with Google Translate and gTTS. It also provides AI-powered summarization of video content and text extraction from documents with translation.
 
 ## Features
 
@@ -11,6 +11,10 @@ This application translates speech in videos to different languages by combining
 - Merge translated audio with original video
 - AI-powered content summarization (25% of original length)
 - GPU acceleration support for faster processing
+- Extract and translate text from PDF documents
+- Extract and translate text from Word documents (.docx)
+- Optical Character Recognition (OCR) to extract text from images
+- Download both original and translated text from documents
 
 ## Supported Languages
 
@@ -19,7 +23,12 @@ This application translates speech in videos to different languages by combining
 - Spanish
 - French
 - German
-- Chinese (Simplified)
+- Gujarati
+- Urdu
+- Bengali
+- Tamil
+- Marathi
+- Kannada
 
 ## Requirements
 
@@ -32,19 +41,32 @@ This application translates speech in videos to different languages by combining
 - yt-dlp
 - Transformers (for summarization)
 - PyTorch (with CUDA support for GPU acceleration)
+- PyPDF2 (for PDF text extraction)
+- python-docx (for Word document text extraction)
+- pytesseract (for OCR image text extraction)
+- Tesseract OCR engine
 
 ## Installation
 
 1. Clone the repository
 2. Install dependencies:
    ```
-   pip install flask openai-whisper googletrans==4.0.0-rc1 gtts yt-dlp transformers torch torchvision torchaudio
+   pip install -r requirements.txt
    ```
-3. Install specific versions for compatibility:
-   ```
-   pip install --force-reinstall httpx==0.13.3 httpcore==0.9.1
-   ```
-4. Install FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html)
+3. Install FFmpeg from [ffmpeg.org](https://ffmpeg.org/download.html)
+4. Install Tesseract OCR:
+   - Windows: 
+     1. Download the installer from [UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki)
+     2. Run the installer and remember the installation path (e.g., `C:\Program Files\Tesseract-OCR`)
+     3. Add Tesseract to your PATH environment variable:
+        - Right-click on 'This PC' or 'My Computer' and select 'Properties'
+        - Click on 'Advanced system settings'
+        - Click on 'Environment Variables'
+        - Under 'System variables', find and select 'Path', then click 'Edit'
+        - Click 'New' and add the Tesseract installation path (e.g., `C:\Program Files\Tesseract-OCR`)
+        - Click 'OK' on all dialogs to save
+   - macOS: `brew install tesseract`
+   - Linux: `sudo apt install tesseract-ocr`
 
 ## Known Issues and Solutions
 
@@ -83,13 +105,25 @@ The application may conflict with newer versions of some packages like elevenlab
    python main.py
    ```
 2. Open your browser and navigate to `http://127.0.0.1:5000`
-3. Upload a video file or provide a YouTube URL
-4. Select the target language for translation
-5. Click "Process" to start translation
-6. View the result with the translated audio
+
+### Video Translation
+1. Click on "Video Translation" or navigate to the main page
+2. Upload a video file or provide a YouTube URL
+3. Select the target language for translation
+4. Click "Translate Video" to start translation
+5. View the result with the translated audio
+
+### Document Processing
+1. Click on "Document Processing" or navigate to "/documents"
+2. Upload a supported document (PDF, Word, or image)
+3. Select the target language for translation
+4. Click "Process Document" to extract and translate text
+5. View the extracted and translated text
+6. Download the original or translated text using the provided buttons
 
 ## How It Works
 
+### Video Translation
 1. The application extracts audio from the uploaded video using FFmpeg
 2. Whisper model transcribes the audio to text with high accuracy
 3. AI summarization generates a concise summary (25% of original length)
@@ -97,8 +131,17 @@ The application may conflict with newer versions of some packages like elevenlab
 5. gTTS converts the translated text to speech
 6. FFmpeg merges the new audio with the original video
 
+### Document Processing
+1. For PDF files: PyPDF2 extracts text from all pages
+2. For Word documents: python-docx extracts text from all paragraphs
+3. For images: Tesseract OCR engine extracts text from the image
+4. The extracted text is cleaned and processed
+5. Google Translate translates the text to the target language
+6. Both original and translated texts are saved and presented to the user
+
 ## Troubleshooting
 
+### Video Processing Issues
 - If you encounter errors related to missing directories, make sure the application has permission to create folders
 - For Whisper-related errors, check that your CUDA/GPU setup is correctly configured if using GPU acceleration
 - Long videos may require more memory for Whisper transcription
@@ -106,8 +149,18 @@ The application may conflict with newer versions of some packages like elevenlab
 - For summarization errors, ensure you have enough RAM available (at least 4GB recommended)
 - For YouTube download issues, refer to the "YouTube Download Timeouts" section above
 
+### Document Processing Issues
+- If OCR results are poor quality, ensure the image is clear and has good contrast
+- For PDF extraction issues, check if the PDF contains actual text rather than scanned images
+- If document processing fails with large files, try splitting them into smaller segments
+- For OCR issues, make sure Tesseract OCR is installed correctly and available in the system PATH
+- Incorrect text encoding may occur with certain languages - try using Unicode-compatible documents
+- If Word documents don't extract properly, check for complex formatting that might not be supported
+
 ## Notes
 
 - Processing long videos may take time, especially for the Whisper transcription
 - Whisper works with many languages and accents with high accuracy
 - For best results, use videos with clear speech 
+- OCR quality depends on the image quality and clarity of the text
+- PDF extraction works best with digitally created PDFs rather than scanned documents 
