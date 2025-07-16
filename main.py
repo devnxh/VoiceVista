@@ -45,7 +45,7 @@ try:
         logger.info(f"CUDA Version: {torch.version.cuda}")
     
     logger.info("Loading Whisper model...")
-    whisper_model = whisper.load_model("base").to(device)
+    whisper_model = whisper.load_model("tiny").to(device)
     logger.info("Whisper model loaded successfully and moved to device")
     
     # Load summarization model on CPU to avoid CUDA memory issues
